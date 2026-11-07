@@ -219,3 +219,30 @@ test('Cursor cannot publish a result after changing its worktree branch',async()
     const e=new Engine(f.config,undefined,{executable:script}); try { await assert.rejects(e.run('code',e.previewRun('code').token),/ownership/); assert.equal(e.get('code').status,'failed'); assert.equal(e.get('code').result,undefined); } finally {e.close();}
   } finally {f.cleanup();}
 });
+
+test('explicit retry preserves failed attempts and invalidates old run approvals',async()=>{
+  const f=fixture();try{
+    f.engine.prepare('plan');f.engine.importResult('plan',result('plan'));f.engine.approve('plan','accept',f.engine.preview('plan','accept').token);
+    const work=f.engine.prepare('code');
+    const marker=join(f.dir,'attempted');const script=join(f.dir,'agent');
+    writeFileSync(script,`#!${process.execPath}\nconst fs=require('fs');if(!fs.existsSync(${JSON.stringify(marker)})){fs.writeFileSync(${JSON.stringify(marker)},'yes');process.exit(1)};console.log(JSON.stringify({type:'result',subtype:'success',is_error:false,result:'proposal',session_id:'s'}));\n`,{mode:0o755});
+    const e=new Engine(f.config,undefined,{executable:script});try{
+      assert.throws(()=>e.retry('code'),/Only failed/);
+      const original=e.previewRun('code');await assert.rejects(e.run('code',original.token),/failed/);
+      const firstRun=e.get('code').runId;
+      writeFileSync(join(work.worktree,'dirty'),'x');assert.throws(()=>e.retry('code'),/dirty/);rmSync(join(work.worktree,'dirty'));
+      assert.equal(e.retry('code').status,'ready');await assert.rejects(e.run('code',original.token),/stale/);
+      const fresh=e.previewRun('code');assert.notEqual(fresh.token,original.token);
+      assert.equal((await e.run('code',fresh.token)).status,'result-ready');assert.notEqual(e.get('code').runId,firstRun);
+      const history=e.audit();assert.ok(history.some(row=>row.action==='run-failed' && row.detail===firstRun));assert.ok(history.some(row=>row.action==='retry-prepared' && row.detail===firstRun));
+      assert.throws(()=>e.retry('code'),/Only failed/);
+    }finally{e.close();}
+  }finally{f.cleanup();}
+});
+
+test('Cursor classifies startup errors without exposing raw credentials',async()=>{
+  const {executeCursor}=await import('../src/adapters.ts');const f=fixture();try{
+    const script=join(f.dir,'agent');writeFileSync(script,`#!${process.execPath}\nconsole.error('Workspace trust required; token=private-sentinel');process.exit(1);\n`,{mode:0o755});
+    await assert.rejects(executeCursor({executable:script,args:[],cwd:f.dir,timeoutMs:5000,maxOutput:1024}),error=>{assert.match(String(error),/workspace trust required/);assert.ok(!String(error).includes('private-sentinel'));return true;});
+  }finally{f.cleanup();}
+});

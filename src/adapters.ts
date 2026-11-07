@@ -27,12 +27,12 @@ export async function executeCursor(spec: Execution, signal?: AbortSignal): Prom
     const env: NodeJS.ProcessEnv = {};
     for (const key of ['PATH','HOME','TMPDIR','TEMP','TMP','LANG','LC_ALL','LC_CTYPE','CURSOR_API_KEY','SYSTEMROOT']) if (process.env[key] !== undefined) env[key]=process.env[key];
     const child = spawn(spec.executable,spec.args,{cwd:spec.cwd,env,stdio:['ignore','pipe','pipe'],detached:process.platform !== 'win32',shell:false});
-    const stdout: Buffer[] = []; let bytes = 0, failure = '', escalation: NodeJS.Timeout | undefined;
+    const stdout: Buffer[] = [], stderr: Buffer[] = []; let bytes = 0, failure = '', escalation: NodeJS.Timeout | undefined;
     const send = (signal: NodeJS.Signals) => { try { if (child.pid && process.platform !== 'win32') process.kill(-child.pid,signal); else child.kill(signal); } catch {} };
     const stop = (reason: string) => { if (!failure) failure=reason; send('SIGTERM'); if (!escalation) escalation=setTimeout(()=>send('SIGKILL'),1000); };
     const timer=setTimeout(()=>stop('Cursor run timed out'),spec.timeoutMs);
     const abort=()=>stop('Cursor run aborted'); signal?.addEventListener('abort',abort,{once:true});
-    const collect=(chunk: Buffer, isStdout: boolean) => { bytes+=chunk.length; if(bytes>spec.maxOutput) stop('Cursor output limit exceeded'); else if(isStdout) stdout.push(chunk); };
+    const collect=(chunk: Buffer, isStdout: boolean) => { bytes+=chunk.length; if(bytes>spec.maxOutput) stop('Cursor output limit exceeded'); else if(isStdout) stdout.push(chunk); else stderr.push(chunk); };
     child.stdout.on('data',(chunk:Buffer)=>collect(chunk,true)); child.stderr.on('data',(chunk:Buffer)=>collect(chunk,false));
     child.on('error',()=>{failure ||= 'Cursor process could not start';});
     child.on('close',async (code)=>{
@@ -50,7 +50,11 @@ export async function executeCursor(spec: Execution, signal?: AbortSignal): Prom
         }
       }
       if(escalation) clearTimeout(escalation);
-      if(failure || code !== 0) { reject(Error(failure || 'Cursor process failed')); return; }
+      if(failure || code !== 0) {
+        const diagnostic=Buffer.concat(stderr).toString('utf8');
+        const category=/trust/i.test(diagnostic) ? 'workspace trust required' : /sandbox/i.test(diagnostic) ? 'sandbox startup or availability error' : /log.?in|authenticat|credential|SecItem/i.test(diagnostic) ? 'authentication error' : /network|connect|fetch|ENOTFOUND/i.test(diagnostic) ? 'network error' : 'no recognized diagnostic';
+        reject(Error(failure || `Cursor process failed (exit ${code}; ${category})`)); return;
+      }
       try { const data=JSON.parse(Buffer.concat(stdout).toString('utf8')); if (!data || data.type !== 'result' || data.subtype !== 'success' || data.is_error !== false || typeof data.result !== 'string' || !data.result.trim() || typeof data.session_id !== 'string') throw Error();
         resolve({version:1,taskId:'placeholder',outcome:'succeeded',summary:data.result.slice(0,32000),evidence:['Cursor CLI returned a successful response. Review the proposal and worktree before acceptance.']});
       } catch { reject(Error('Invalid Cursor JSON response')); }

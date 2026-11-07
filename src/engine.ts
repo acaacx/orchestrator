@@ -151,7 +151,7 @@ export class Engine {
     const prompt=JSON.stringify({instruction:'Perform the task in the worktree. Return your findings and proposed changes as text. Do not commit, merge, push, or deploy. Changes may require human review and application.',task:r.task,dependencies});
     const executable=resolveExecutable(this.options.executable);
     const args=['--print','--output-format','json','--sandbox','enabled',...(r.task.capability === 'plan' ? ['--mode','plan'] : r.task.capability === 'review' ? ['--mode','ask'] : []),prompt];
-    const detail={action:'run',task:r.task,dependencies,executable,executableHash:hash(readFileSync(executable).toString('base64')),args,cwd:r.worktree,head:this.git(['rev-parse','HEAD'],r.worktree),timeoutMs:this.options.timeoutMs ?? 600000,maxOutput:this.options.maxOutput ?? 1048576};
+    const detail={action:'run',previousRunId:r.runId ?? null,task:r.task,dependencies,executable,executableHash:hash(readFileSync(executable).toString('base64')),args,cwd:r.worktree,head:this.git(['rev-parse','HEAD'],r.worktree),timeoutMs:this.options.timeoutMs ?? 600000,maxOutput:this.options.maxOutput ?? 1048576};
     return {...detail,token:hash(JSON.stringify(detail))};
   }
   previewRun(id: string) { return this.transaction(()=>this.runPreview(this.get(id))); }
@@ -170,6 +170,15 @@ export class Engine {
       if (!(error instanceof ProcessGroupStillAliveError)) this.transaction(()=>{ const r=this.get(id); if(r.status === 'running' && r.runId === claim.runId) { r.status='failed'; this.save(r,'run-failed',claim.runId); } });
       throw error;
     }
+  }
+  retry(id: string) {
+    return this.transaction(() => {
+      const r=this.get(id);
+      if (r.status !== 'failed' || !r.runId || r.task.adapter !== 'cursor' || r.result) throw Error('Only failed Cursor process attempts without a result can be retried');
+      this.verify(r);
+      if (this.git(['status','--porcelain','--untracked-files=all','--ignored'],r.worktree)) throw Error('Worktree is dirty');
+      r.status='ready'; this.save(r,'retry-prepared',r.runId); return r;
+    });
   }
   recover(id: string, confirmation: string) {
     if(confirmation !== 'stopped') throw Error('Confirm all child processes have stopped with: stopped');

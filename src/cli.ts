@@ -3,7 +3,7 @@ const [command, configFile, id, argument, token] = process.argv.slice(2);
 const help = `Usage: npm start -- <command> config.json [task-id] [argument] [token]
 Commands: init | status | audit | prepare ID | import ID result.json | cancel ID
           preview ID accept|cleanup|run | approve ID accept|cleanup TOKEN
-          run ID TOKEN | recover ID stopped
+          run ID TOKEN | retry ID | recover ID stopped
 Cursor can run only after preview and approval. Without --force, changes may be proposals. No automatic acceptance, merges, pushes, or deployments.`;
 if (!configFile || command === 'help') console.log(help);
 else {
@@ -19,6 +19,7 @@ else {
       case 'import': result=engine.importResult(id,readJson(argument)); break;
       case 'cancel': result=engine.cancel(id); break;
       case 'run': { const controller=new AbortController(); const abort=()=>controller.abort(); process.once('SIGINT',abort); process.once('SIGTERM',abort); try { result=await engine.run(id,argument,controller.signal); } finally { process.removeListener('SIGINT',abort); process.removeListener('SIGTERM',abort); } break; }
+      case 'retry': result=engine.retry(id); break;
       case 'recover': result=engine.recover(id,argument); break;
       case 'preview': case 'approve':
         if(command === 'preview' && argument === 'run') { result=engine.previewRun(id); break; }

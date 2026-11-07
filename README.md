@@ -70,6 +70,16 @@ If the orchestrator was killed and a task remains `running`, determine that ever
 npm start -- recover examples/config.json implement stopped
 ```
 
+After fixing a failed Cursor process attempt (for example, signing in), prepare an explicit retry:
+
+```sh
+npm start -- retry examples/config.json implement
+npm start -- preview examples/config.json implement run
+npm start -- run examples/config.json implement '<new-token>'
+```
+
+Retry requires an unchanged, clean owned worktree and a failed Cursor attempt without a result. It preserves failure history and invalidates previous run tokens. It cannot reset a running task; use recovery first only after confirming its child processes have stopped.
+
 Recovery marks the task failed without rerunning it. Successful runs become `result-ready`; known process failures become `failed`. Runs whose termination cannot be confirmed stay `running` until recovery. There is no automatic retry. Inspect interrupted runs and preserved branches manually.
 
 Other commands:
