@@ -57,6 +57,12 @@ Cursor runs use the installed `agent` executable with `--print --output-format j
 
 The version 1 result contract is `version`, `taskId`, `outcome` (`succeeded` or `failed`), `summary`, and `evidence`; see [`examples/result.json`](examples/result.json). Results are summaries and evidence supplied by the process or operator, not proof that changes are correct. Review and commit wanted changes locally before accepting. Preview requires a clean worktree, including ignored files. Any change makes an approval token stale.
 
+## FAQ
+
+### Why did Cursor finish without changing files?
+
+The orchestrator invokes Cursor with `--print --output-format json --sandbox enabled`, without `--force` or `--trust`, so Cursor may return proposed edits instead of applying them. Successful output becomes `result-ready` and requires separate human acceptance; it does not mean files changed. Inspect the worktree, apply wanted proposals, run tests, and commit locally before accepting. Acceptance does not merge, push, or deploy.
+
 Cleanup also requires a distinct preview and explicit token approval:
 
 ```sh
