@@ -131,7 +131,7 @@ The target repository needs at least one commit. Keep the configuration and loca
 - Concurrent mutations wait up to three seconds for SQLite's writer lock, then fail safely; retry after the other command completes.
 - Inspect failed results and preserved branches manually. The MVP does not reset or rerun failed tasks automatically.
 
-Validation details belong to the implementation's current run and are reported separately; no live paid model execution is claimed here. Node 22.18 is the declared minimum.
+See `validation.txt` for the latest recorded checks. Node 22.18 is the declared minimum; the recorded run used Node 26.8.1.
 
 ## Extending the registry
 
@@ -139,4 +139,8 @@ Grok Bot supports `plan` and `review`; Cursor and optional Codex support `plan`,
 
 To add a future Claude Code harness, implement the exported `Adapter` interface, register it in a `Registry`, and pass that registry to `new Engine(config, registry)`. Add it to `builtins()` for CLI selection. The current automated execution policy is deliberately Cursor-specific; a new automated harness needs its own reviewed executable, arguments, result conversion, and approval policy. Task JSON cannot import modules or supply arbitrary executable commands.
 
-Validated on macOS with Node 26.8.1 and Git 2.54.0: TypeScript checking and all 17 tests pass. Automated tests use real child processes with a fake Cursor executable, including process-group shutdown, timeout/output limits, stale approval, worktree ownership, and CLI behavior. A live paid Cursor model call was not performed.
+Validated on macOS with Node 26.8.1 and Git 2.54.0: TypeScript checking and all 19 tests pass. Automated tests use real child processes with a fake Cursor executable, including process-group shutdown, timeout/output limits, stale approval, worktree ownership, and CLI behavior. A real Cursor task completed after login and native worktree trust, applied a README-only FAQ change, and passed separate human acceptance.
+
+## Next implementation
+
+The [Grok Bot connection implementation plan](docs/implementation/grok-bot-connection.md) describes the authenticated relay, local intake worker, approval boundaries, migration, and end-to-end acceptance tests for the next session. The connection remains planned; the existing Grok Bot adapter is still file-based.
