@@ -1,0 +1,27 @@
+Validation: 2026-11-07 (Asia/Manila)
+Environment: macOS, Node 26.8.1, Git 2.54.0
+
+npm run check: PASS
+npm test: PASS — 17 tests, 0 failures
+
+Coverage includes:
+- Grok file handoff to Cursor, dependency acceptance, persistence
+- Worktree ownership, dirty and ignored files, stale approvals
+- Strict task/result contracts, optional Codex, future plugin registry
+- Preparation/cleanup recovery and SQLite writer contention
+- Approved Cursor subprocess cwd/arguments and structured output
+- Invalid output, nonzero exit, missing executable, timeout, output cap, abort
+- Concurrent-run exclusion, manual recovery, no automatic acceptance
+- Process-group cleanup with an uncooperative descendant, including CLI exit
+- Rejection of worktree branch changes during execution
+
+After adding the unsupported-Windows guard, TypeScript checking and the
+focused Cursor/process suite were rerun. Automated execution requires macOS
+or Linux; native Windows remains unsupported.
+
+Cursor integration verified against installed CLI --help and official:
+https://cursor.com/docs/cli/headless
+https://cursor.com/docs/cli/reference/output-format
+Tests use fake Cursor executables in real subprocesses. No paid live model
+call or production deployment was performed. No --force or --trust flags
+are passed; implementation tasks may return proposals instead of edits.

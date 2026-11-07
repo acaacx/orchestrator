@@ -1,0 +1,9 @@
+{
+  "version": 1,
+  "repository": "/absolute/path/to/your/committed-repository",
+  "enabledAdapters": ["grok-bot", "cursor"],
+  "tasks": [
+    {"id":"plan","adapter":"grok-bot","capability":"plan","prompt":"Propose a small README improvement and acceptance criteria. Return a structured result with the plan in summary and criteria in evidence.","dependsOn":[]},
+    {"id":"implement","adapter":"cursor","capability":"implement","prompt":"Implement the accepted README plan in this worktree. Review and commit changes locally. Return result JSON with validation evidence. Do not push or deploy.","dependsOn":["plan"]}
+  ]
+}

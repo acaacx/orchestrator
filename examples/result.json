@@ -1,0 +1,7 @@
+{
+  "version": 1,
+  "taskId": "plan",
+  "outcome": "succeeded",
+  "summary": "Example only: add a short prerequisites section to the README. Replace this with the reviewed Grok Bot plan.",
+  "evidence": ["Example acceptance criterion: prerequisites match the repository's actual tools."]
+}
